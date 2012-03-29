@@ -4,7 +4,6 @@
 #include <math.h>
 #include <string>
 #include <map>
-#include <list>
 #include <vector>
 #include <string.h>
 #include <iostream>
@@ -50,7 +49,7 @@ class Dataset
     /**
      * Defines a list of keys.
      */
-    typedef std::list<std::string> KeyList;
+    typedef std::map<std::string, unsigned int> KeyList;
 
     /**
      * Defines a vector of thresholds.
@@ -270,14 +269,16 @@ class Dataset
     /**
      * Determines the information gain of a specific column with respect to a
      * given decision column.
-     * @param decision_column The decision (classification) column.
-     * @param attribute_column The attribute column to determine information
+     * @param [in] decision_column The decision (classification) column.
+     * @param [in] attribute_column The attribute column to determine information
      *      gain on.
+     * @param [out] threshold The optimal splitting threshold.
      * @return The information gain of splitting on the given column.
      */
     double information_gain(
       const unsigned int decision_column,
-      const unsigned int attribute_column );
+      const unsigned int attribute_column,
+      double & threshold );
 
     /**
      * Generate a bootstrap sample from the dataset (sampling with replacement).
@@ -364,6 +365,19 @@ class Dataset
     unsigned int & operator()( const unsigned int row )
     {
       return data_ref[row];
+    }
+
+    /**
+     * Key accessor.
+     * @return Reference to keys.
+     */
+    const KeyList & get_keys( void ) const
+    {
+      return keys;
+    }
+    KeyList & get_keys( void )
+    {
+      return keys;
     }
 
   private:

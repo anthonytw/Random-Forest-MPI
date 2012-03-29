@@ -330,8 +330,11 @@ void ut_Dataset::testMethod_information_gain( void )
     }
 
     // Find best information gain.
+    double threshold = 0.0;
+    // TODO: Check IG.
+    ds.information_gain( 1, 0, threshold );
     CPPUNIT_ASSERT_DOUBLES_EQUAL(
-      class_threshold, ds.information_gain( 1, 0 ), 1e-9 );
+      class_threshold, threshold, 1e-9 );
   }
 }
 

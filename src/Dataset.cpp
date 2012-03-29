@@ -121,7 +121,8 @@ DatasetSplitPair Dataset::split(
 
 double Dataset::information_gain(
   const unsigned int decision_column,
-  const unsigned int attribute_column )
+  const unsigned int attribute_column,
+  double & threshold )
 {
   // Calculate classification entropy.
   ProbabilityMap enum_dc = enumerate_threshold( decision_column, 0.0 );
@@ -162,7 +163,8 @@ double Dataset::information_gain(
   }
 
   // Finished.
-  return best_split_threshold;
+  threshold = best_split_threshold;
+  return best_split_ig;
 }
 
 //------------------------------------------------------------------------------

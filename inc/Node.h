@@ -246,6 +246,15 @@ class SplitNode : public Node
     }
 
     /**
+     * Get the split column.
+     * @return The split column.
+     */
+    unsigned int get_column( void ) const
+    {
+      return column;
+    }
+
+    /**
      * Get the split threshold.
      * @return The split threshold.
      */
