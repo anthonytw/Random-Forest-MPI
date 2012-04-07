@@ -91,6 +91,21 @@ void RandomTree::_grow_decision_tree(
   Node * const parent,
   const std::string action )
 {
+/*
+ *
+Data keys: ['id', 'recency', 'frequency', 'monetary', 'time', 'donated']
+Data size: 748 rows
+5 - 0.791644629845
+Split thresholds:  6.0 ,  4.0 ,  1000.0 ,  51.0 ,
+Split stats:
+  - Highest IG    :  0.0730344351
+  - Highest IG Thr:  6.0
+  - Highest IG Col:  recency  /  1
+ */
+  Dataset::ProbabilityMap pm_class =
+    data.enumerate_threshold( decision_column, 0 );
+  double entropy = pm_class.entropy();
+
   // Choose a random subset of keys.
   Dataset::KeyList sample_keys;
   while ( sample_keys.size() < keys_per_node )
@@ -138,8 +153,6 @@ void RandomTree::_grow_decision_tree(
   if ( finished_splitting )
   {
     // Determine best classification.
-    Dataset::ProbabilityMap pm_class =
-      data.enumerate_threshold( decision_column, 0 );
     bool best_class = (pm_class["LE"] < pm_class["G"]);
 
     // Add leaf node.

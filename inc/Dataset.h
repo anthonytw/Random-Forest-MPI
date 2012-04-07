@@ -6,7 +6,6 @@
 #include <map>
 #include <vector>
 #include <string.h>
-#include <iostream>
 #include <iomanip>
 
 #define null(type) reinterpret_cast<type*>(0)
@@ -39,7 +38,7 @@ class Dataset
           {
             if ( iter->second > 0.0 )
             {
-              entropy -= iter->second * log10(iter->second);
+              entropy -= iter->second * log10(iter->second) / log10(2.0);
             }
           }
           return entropy;

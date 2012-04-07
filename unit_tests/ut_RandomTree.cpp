@@ -11,10 +11,126 @@
 #include "Dataset.h"
 
 #include <string>
+#include <stdlib.h>
 
 using namespace std;
 
 CPPUNIT_TEST_SUITE_REGISTRATION( ut_RandomTree );
+
+namespace ut_RandomTree_ns
+{
+  vector<string> Tokenize(const string& str,const string& delimiters)
+  {
+    vector<string> tokens;
+    string::size_type delimPos = 0, tokenPos = 0, pos = 0;
+
+    if(str.length() < 1)
+    {
+      return tokens;
+    }
+
+    while (true)
+    {
+      delimPos = str.find_first_of(delimiters, pos);
+      tokenPos = str.find_first_not_of(delimiters, pos);
+
+      if(string::npos != delimPos)
+      {
+        if(string::npos != tokenPos)
+        {
+          if(tokenPos<delimPos)
+          {
+            tokens.push_back(str.substr(pos,delimPos-pos));
+          }
+          else
+          {
+            tokens.push_back("");
+          }
+        }
+        else
+        {
+          tokens.push_back("");
+        }
+        pos = delimPos+1;
+      }
+      else
+      {
+        if(string::npos != tokenPos)
+        {
+          tokens.push_back(str.substr(pos));
+        }
+        else
+        {
+          tokens.push_back("");
+        }
+        break;
+      }
+    }
+    return tokens;
+  }
+}
+
+void ut_RandomTree::testNegro( void )
+{
+
+  // Load in dataset.
+  string line;
+  vector<string> lines;
+  ifstream file( "data/realData.data", ios_base::in );
+  while ( getline(file, line, '\n') )
+  {
+    lines.push_back( line );
+  }
+
+  // Tokenize first line.
+  vector<string> l1t = ut_RandomTree_ns::Tokenize(lines[0], ",");
+
+  // Create dataset.
+  const unsigned int row_count = lines.size();
+  const unsigned int col_count = l1t.size(); // Ignore first (ID) column and last (?) col.
+
+  // Dataset exists?
+  Dataset dsr( row_count, col_count );
+
+  // Convert data.
+  unsigned int donated = 0;
+  for ( unsigned int row = 0; row < dsr.row_count(); ++row )
+  {
+    // Tokenize row.
+    vector<string> tokens = ut_RandomTree_ns::Tokenize(lines[row], ",");
+
+    // Last element is the class.
+    dsr[row][0] = (tokens[col_count-1] == "Donate") ? 1.0 : 0.0;
+
+    // Fetch the rest of the features.
+    for ( unsigned int col = 1; col < col_count; ++col )
+    {
+      dsr[row][col] = atof(tokens[col - 1].c_str());
+    }
+  }
+
+  cout << dsr.row_count() << endl;
+
+  // Configure keys.
+  Dataset::KeyList & keys = dsr.get_keys();
+  keys["class"] = 0;
+  keys["recency"] = 1;
+  keys["frequency"] = 2;
+  keys["monetary"] = 3;
+  keys["time"] = 4;
+
+  Dataset::KeyList split_keys = dsr.get_keys();
+  split_keys.erase("class");
+
+  // Create tree.
+  RandomTree tree;
+  tree.grow_decision_tree(
+    dsr, split_keys, split_keys.size(), 0 );
+
+  // Draw tree.
+  ofstream treestream("data/output/dtree.dot", ios_base::out);
+  treestream << tree.draw();
+}
 
 //------------------------------------------------------------------------------
 void ut_RandomTree::testConstructor( void )

@@ -10,13 +10,151 @@
 
 #include "RandomTree.h"
 
+#include <pthread.h>
+#include <semaphore.h>
+
 class RandomForest
 {
   public:
-    /*
+    /**
      * Defines a forest (a vector of trees).
      */
-    typedef std::vector<RandomTree> Forest;
+    typedef std::vector<RandomTree*> Forest;
+
+  private:
+    /**
+     * Defines a thread-safe result queue.
+     */
+    class ResultQueue
+    {
+      public:
+        /**
+         * Constructor.
+         */
+        ResultQueue( void )
+        {
+          // Initialize mutex.
+          mutex = PTHREAD_MUTEX_INITIALIZER;
+
+          // Initialize semaphore.
+          sem_init( &semaphore, 0, 0 );
+        }
+
+        /**
+         * Function to push a result tree.
+         */
+        void push( RandomTree * result )
+        {
+          pthread_mutex_lock(&mutex);
+          results.push_back(result);
+          pthread_mutex_unlock(&mutex);
+          sem_post( &semaphore );
+        }
+
+        /**
+         * Pull next result.
+         * @return Pointer to a RandomTree.
+         */
+        RandomTree * pop( void )
+        {
+          sem_wait(&semaphore);
+          pthread_mutex_lock(&mutex);
+          RandomTree *result = results[results.size()-1];
+          results.pop_back();
+          pthread_mutex_unlock(&mutex);
+
+          return result;
+        }
+
+      private:
+        pthread_mutex_t mutex;  ///< Access mutex.
+        sem_t semaphore;        ///< Data semaphore. Indicates data is available for reading.
+        Forest results;         ///< The results list.
+    };
+
+    /**
+     * Defines a forest growing task.
+     */
+    class ForestGrowingTask
+    {
+      public:
+        /**
+         * Constructor.
+         */
+        ForestGrowingTask(
+          Dataset & dataset,
+          const unsigned int decision_column,
+          const unsigned int bootstrap_size,
+          const Dataset::KeyList & split_keys,
+          const unsigned int keys_per_node,
+          const unsigned int tree_count,
+          ResultQueue * const result_queue ) :
+            dataset(dataset),
+            decision_column(decision_column),
+            bootstrap_size(bootstrap_size),
+            split_keys(split_keys),
+            keys_per_node(keys_per_node),
+            tree_count(tree_count),
+            result_queue(result_queue)
+        {
+          //
+        }
+
+        /**
+         * Spawn the task.
+         * @return The return value of the thread creation routine.
+         */
+        int spawn( void )
+        {
+          return pthread_create(
+            &thread, NULL, ForestGrowingTask::route,
+            reinterpret_cast<void*>(this) );
+        }
+
+      private:
+        /**
+         * Thread routing function.
+         * @param class_pointer The pointer to the task class to execute.
+         * @return Null pointer (unused, required for interface).
+         */
+        static void * route( void * class_pointer )
+        {
+          ForestGrowingTask *task = reinterpret_cast<ForestGrowingTask*>(class_pointer);
+          task->run();
+          return null(void);
+        }
+
+        /**
+         * Run the task.
+         */
+        void run( void )
+        {
+          // Iteratively build each tree.
+          for ( unsigned int tree_index = 0; tree_index < tree_count; ++tree_index )
+          {
+            // Generate a bootstrap sample.
+            Dataset bootstrap = dataset.bootstrap_sample(bootstrap_size);
+
+            // Generate a random tree.
+            RandomTree *tree = new RandomTree;
+            tree->grow_decision_tree(
+              bootstrap, split_keys, keys_per_node, decision_column );
+
+            // Push result.
+            result_queue->push(tree);
+          }
+        }
+
+      private:
+        pthread_t thread;
+        Dataset & dataset;
+        const unsigned int decision_column;
+        const unsigned int bootstrap_size;
+        const Dataset::KeyList & split_keys;
+        const unsigned int keys_per_node;
+        const unsigned int tree_count;
+        ResultQueue * const result_queue;
+    };
 
   public:
     /**
@@ -24,6 +162,14 @@ class RandomForest
      */
     void burn( void )
     {
+      // Destroy all trees.
+      for (
+        Forest::iterator iter = forest.begin();
+        iter != forest.end(); ++iter )
+      {
+        delete (*iter);
+        *iter = null(RandomTree);
+      }
       forest.clear();
     }
 
@@ -58,6 +204,9 @@ class RandomForest
 
   private:
     Forest forest;        ///< The random forest generated.
+
+  private:
+    friend class ut_RandomForest;   ///< For unit testing.
 };
 
 #endif
