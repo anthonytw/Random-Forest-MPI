@@ -28,7 +28,7 @@ void RandomForest::grow_forest(
   ResultQueue results;
 
   // Initialize tasks.
-  unsigned int task_count = 16;
+  unsigned int task_count = 1;
   unsigned int trees_per_task = tree_count / task_count;
   unsigned int total_trees = trees_per_task * task_count;
   vector<ForestGrowingTask*> task_list;

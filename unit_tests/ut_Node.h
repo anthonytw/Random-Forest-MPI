@@ -16,11 +16,13 @@ class ut_Node : public CppUnit::TestFixture
   CPPUNIT_TEST_SUITE( ut_Node );
     CPPUNIT_TEST( testClass_LeafNode );
     CPPUNIT_TEST( testClass_SplitNode );
+    CPPUNIT_TEST( testMethod_Serialize );
   CPPUNIT_TEST_SUITE_END();
 
   public:
     void testClass_LeafNode( void );
     void testClass_SplitNode( void );
+    void testMethod_Serialize( void );
 };
 
 #endif

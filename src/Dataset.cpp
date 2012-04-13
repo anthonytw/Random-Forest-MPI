@@ -30,6 +30,16 @@ Dataset::Dataset( Dataset & reference, const unsigned int rows ) :
 
 //------------------------------------------------------------------------------
 
+Dataset::Dataset( RealMatrix & data, const unsigned int rows ) :
+  data_ref(rows),
+  data(&data),
+  usingRef(true)
+{
+  //
+}
+
+//------------------------------------------------------------------------------
+
 Dataset::~Dataset( void )
 {
   // Destroy dataset if it's not a reference.

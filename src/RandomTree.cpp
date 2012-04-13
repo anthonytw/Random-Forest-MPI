@@ -104,7 +104,7 @@ Split stats:
  */
   Dataset::ProbabilityMap pm_class =
     data.enumerate_threshold( decision_column, 0 );
-  double entropy = pm_class.entropy();
+  //double entropy = pm_class.entropy();
 
   // Choose a random subset of keys.
   Dataset::KeyList sample_keys;

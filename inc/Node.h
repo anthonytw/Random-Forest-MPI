@@ -5,6 +5,8 @@
 #include <string>
 #include <sstream>
 
+#include <ostream>
+#include <istream>
 #include <iostream>
 
 /**
@@ -18,17 +20,17 @@ class Node
      */
     typedef std::vector<Node*> NodeSet;
 
-  public:
     /**
-     * Constructor.
-     * @param action The action that led to the node.
+     * Node type indicator.
      */
-    Node( const std::string action ) :
-      action(action)
+    enum Type
     {
-      //
-    }
+      InvalidType,
+      SplitType,
+      LeafType,
+    };
 
+  public:
     /**
      * Destructor.
      */
@@ -41,9 +43,18 @@ class Node
      * Determine the action that led to the node.
      * @return The action that led to the node.
      */
-    const std::string get_action( void ) const
+    const std::string & get_action( void ) const
     {
       return action;
+    }
+
+    /**
+     * Determine node type.
+     * @return Node type.
+     */
+    const Type & get_type( void ) const
+    {
+      return type;
     }
 
     /**
@@ -76,6 +87,35 @@ class Node
      */
     virtual std::string draw( void ) const = 0;
 
+    /**
+     * Serialize the node and its children.
+     * @param stream The output stream to serialize to.
+     * @return The output stream.
+     */
+    static std::ostream & serialize( std::ostream & stream, const Node & node );
+
+    /**
+     * Deserialize the node and its children.
+     * @param stream The input stream to deserialize from.
+     * @return Pointer to the node and its children.
+     */
+    static Node * deserialize( std::istream & stream );
+
+  protected:
+    /**
+     * Constructor.
+     * @param action The action that led to the node.
+     */
+    Node( const std::string action, const Type type ) :
+      type(type),
+      action(action)
+    {
+      //
+    }
+
+  protected:
+    const Type type;          ///< The node type.
+
   private:
     const std::string action; ///< The action that led to the node.
 };
@@ -94,7 +134,7 @@ class LeafNode : public Node
     LeafNode(
       const std::string action,
       const bool classification ) :
-        Node(action),
+        Node(action, LeafType),
         classification(classification)
     {
       //
@@ -149,6 +189,52 @@ class LeafNode : public Node
       return draw_string;
     }
 
+    /**
+     * Serialize the node.
+     * @param stream The output stream to serialize to.
+     * @param node The node.
+     * @return The output stream.
+     */
+    static std::ostream & serialize_node( std::ostream & stream, const LeafNode & node )
+    {
+      std::size_t size = node.get_action().size();
+      stream.write((char*)&size, sizeof(size));
+      stream.write(node.get_action().c_str(), size);
+      stream.write((char*)&node.classification, sizeof(node.classification));
+      return stream;
+    }
+
+    /**
+     * Deserialize the node.
+     * @param stream The input stream to deserialize from.
+     * @param node The node pointer to update.
+     * @return The input stream.
+     */
+    static std::istream & deserialize_node( std::istream & stream, Node * &node )
+    {
+      // Read in action.
+      std::size_t size = 0;
+      stream.read((char*)&size, sizeof(size));
+      std::string action("[*null*]");
+      if ( size > 0 )
+      {
+        char action_buffer[size+1];
+        stream.read(action_buffer, size);
+        action_buffer[size] = 0;
+        action = std::string(action_buffer);
+      }
+
+      // Read classification.
+      bool classification = false;
+      stream.read((char*)&classification, sizeof(classification));
+
+      // Construct node.
+      node = new LeafNode(action, classification);
+
+      // Done.
+      return stream;
+    }
+
   private:
     const bool classification;  ///< Node classification.
 };
@@ -169,7 +255,7 @@ class SplitNode : public Node
       const std::string action,
       const unsigned int column,
       const double threshold ) :
-        Node(action),
+        Node(action, SplitType),
         column(column),
         threshold(threshold)
     {
@@ -261,6 +347,81 @@ class SplitNode : public Node
     double get_threshold( void ) const
     {
       return threshold;
+    }
+
+    /**
+     * Serialize the node.
+     * @param stream The output stream to serialize to.
+     * @return The output stream.
+     */
+    static std::ostream & serialize_node( std::ostream & stream, const SplitNode & node )
+    {
+      std::size_t size = node.get_action().size();
+      stream.write((char*)&size, sizeof(size));
+      stream.write(node.get_action().c_str(), size);
+      stream.write((char*)&node.column, sizeof(node.column));
+      stream.write((char*)&node.threshold, sizeof(node.threshold));
+
+      // Children?
+      size = node.children.size();
+      stream.write((char*)&size, sizeof(size));
+      if ( size > 0 )
+      {
+        for (
+          NodeSet::const_iterator iter = node.children.begin();
+          iter != node.children.end(); ++iter )
+        {
+          Node::serialize(stream, **iter);
+        }
+      }
+
+      // Finished.
+      return stream;
+    }
+
+    /**
+     * Deserialize the node.
+     * @param stream The input stream to deserialize from.
+     * @param node The node pointer to update.
+     * @return The input stream.
+     */
+    static std::istream & deserialize_node( std::istream & stream, Node * &node )
+    {
+      // Read in action.
+      std::size_t size = 0;
+      stream.read((char*)&size, sizeof(size));
+      std::string action("[*null*]");
+      if ( size > 0 )
+      {
+        char action_buffer[size+1];
+        stream.read(action_buffer, size);
+        action_buffer[size] = 0;
+        action = std::string(action_buffer);
+      }
+
+      // Read column and threshold.
+      unsigned int column = 0;
+      double threshold = 0.0;
+      stream.read((char*)&column, sizeof(column));
+      stream.read((char*)&threshold, sizeof(threshold));
+
+      // Construct node.
+      node = new SplitNode(action, column, threshold);
+
+      // Construct children, if any.
+      std::size_t children_count = 0;
+      stream.read((char*)&children_count, sizeof(children_count));
+      if ( children_count > 0 )
+      {
+        for ( unsigned int c = 0; c < children_count; ++c )
+        {
+          Node * child = Node::deserialize(stream);
+          node->add_child(child);
+        }
+      }
+
+      // Done.
+      return stream;
     }
 
   private:

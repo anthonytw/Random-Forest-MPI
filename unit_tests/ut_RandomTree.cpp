@@ -15,7 +15,7 @@
 
 using namespace std;
 
-CPPUNIT_TEST_SUITE_REGISTRATION( ut_RandomTree );
+//CPPUNIT_TEST_SUITE_REGISTRATION( ut_RandomTree );
 
 namespace ut_RandomTree_ns
 {
@@ -68,68 +68,6 @@ namespace ut_RandomTree_ns
     }
     return tokens;
   }
-}
-
-void ut_RandomTree::testNegro( void )
-{
-
-  // Load in dataset.
-  string line;
-  vector<string> lines;
-  ifstream file( "data/realData.data", ios_base::in );
-  while ( getline(file, line, '\n') )
-  {
-    lines.push_back( line );
-  }
-
-  // Tokenize first line.
-  vector<string> l1t = ut_RandomTree_ns::Tokenize(lines[0], ",");
-
-  // Create dataset.
-  const unsigned int row_count = lines.size();
-  const unsigned int col_count = l1t.size(); // Ignore first (ID) column and last (?) col.
-
-  // Dataset exists?
-  Dataset dsr( row_count, col_count );
-
-  // Convert data.
-  unsigned int donated = 0;
-  for ( unsigned int row = 0; row < dsr.row_count(); ++row )
-  {
-    // Tokenize row.
-    vector<string> tokens = ut_RandomTree_ns::Tokenize(lines[row], ",");
-
-    // Last element is the class.
-    dsr[row][0] = (tokens[col_count-1] == "Donate") ? 1.0 : 0.0;
-
-    // Fetch the rest of the features.
-    for ( unsigned int col = 1; col < col_count; ++col )
-    {
-      dsr[row][col] = atof(tokens[col - 1].c_str());
-    }
-  }
-
-  cout << dsr.row_count() << endl;
-
-  // Configure keys.
-  Dataset::KeyList & keys = dsr.get_keys();
-  keys["class"] = 0;
-  keys["recency"] = 1;
-  keys["frequency"] = 2;
-  keys["monetary"] = 3;
-  keys["time"] = 4;
-
-  Dataset::KeyList split_keys = dsr.get_keys();
-  split_keys.erase("class");
-
-  // Create tree.
-  RandomTree tree;
-  tree.grow_decision_tree(
-    dsr, split_keys, split_keys.size(), 0 );
-
-  // Draw tree.
-  ofstream treestream("data/output/dtree.dot", ios_base::out);
-  treestream << tree.draw();
 }
 
 //------------------------------------------------------------------------------
@@ -193,7 +131,6 @@ N5[shape=ellipse,label=\"([4] >= 6.4)\\n1\"];\n\
 N6[shape=ellipse,label=\"([4] < 6.4)\\n0\"];\n\
 }";
   CPPUNIT_ASSERT_EQUAL( expectedOutput, output );
-
 }
 
 //------------------------------------------------------------------------------

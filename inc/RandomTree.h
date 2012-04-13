@@ -96,6 +96,33 @@ class RandomTree
      */
     void classify_oob_set( double & oob_error ) const;
 
+    /**
+     * Serializes the tree.
+     * @param stream The output stream.
+     * @return The output stream.
+     */
+    std::ostream & serialize( std::ostream & stream ) const
+    {
+      return (root != null(Node)) ? Node::serialize(stream, *root) : stream;
+    }
+
+    /**
+     * Deserializes the tree.
+     * @param stream The input stream.
+     * @return The input stream.
+     */
+    std::istream & deserialize( std::istream & stream )
+    {
+      // Burn the tree if it exists.
+      burn();
+
+      // Deserialize.
+      root = Node::deserialize(stream);
+
+      // Done.
+      return stream;
+    }
+
   private:
     /**
      * Private helper method to grow the tree.
@@ -120,6 +147,7 @@ class RandomTree
 
   private:
     friend class ut_RandomTree;         ///< For unit testing.
+    friend class ut_Node;               ///< For unit testing.
 };
 
 #endif

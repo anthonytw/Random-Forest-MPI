@@ -163,7 +163,7 @@ class Dataset
          * @param columns Columns in matrix.
          */
         RealMatrix( const unsigned int rows, const unsigned int columns ) :
-          rows(rows), columns(columns)
+          owned(true), rows(rows), columns(columns)
         {
           // Allocate data matrix.
           data = new double[rows*columns];
@@ -171,11 +171,29 @@ class Dataset
         }
 
         /**
+         * Constructor.
+         * @param data Pointer to data.
+         * @param rows Rows in matrix.
+         * @param columns Columns in matrix.
+         */
+        RealMatrix(
+          double * const data,
+          const unsigned int rows,
+          const unsigned int columns ) :
+            owned(false), rows(rows), columns(columns), data(data)
+        {
+          //
+        }
+
+        /**
          * Destructor.
          */
         ~RealMatrix( void )
         {
-          delete [] data;
+          if ( owned )
+          {
+            delete [] data;
+          }
         }
 
         /**
@@ -211,6 +229,7 @@ class Dataset
         }
 
       private:
+        const bool owned;     ///< Whether or not the data is owned by this structure.
         unsigned int rows;    ///< Rows in the matrix.
         unsigned int columns; ///< Columns in the matrix.
         double * data;        ///< The matrix data.
@@ -230,6 +249,13 @@ class Dataset
      * @param rows Rows in this dataset.
      */
     Dataset( Dataset & reference, const unsigned int rows );
+
+    /**
+     * Constructor.
+     * @param data Dataset reference.
+     * @param rows Rows in this dataset.
+     */
+    Dataset( RealMatrix & data, const unsigned int rows );
 
     /**
      * Destructor.

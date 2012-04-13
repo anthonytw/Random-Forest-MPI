@@ -19,6 +19,7 @@ class ut_RandomTree : public CppUnit::TestFixture
     CPPUNIT_TEST( testMethod_grow_decision_tree );
     CPPUNIT_TEST( testMethod_classify );
     CPPUNIT_TEST( testMethod_classify_oob_set );
+    //CPPUNIT_TEST( testMethod_serialize );
   CPPUNIT_TEST_SUITE_END();
 
   public:

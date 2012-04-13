@@ -202,6 +202,67 @@ class RandomForest
      */
     void classify_oob( const Dataset::KeyList & keys_to_permute );
 
+    /**
+     * Serializes the tree.
+     * @param stream The output stream.
+     * @return The output stream.
+     */
+    std::ostream & serialize( std::ostream & stream )
+    {
+      // Write the trees.
+      std::size_t size = forest.size();
+      stream.write((char*)&size, sizeof(size));
+      for ( std::size_t t = 0; t < size; ++t )
+      {
+        forest[t]->serialize(stream);
+      }
+      return stream;
+    }
+
+    /**
+     * Deserializes the tree and appends it to the current tree.
+     * @param stream The input stream.
+     * @return The input stream.
+     */
+    std::istream & deserialize_append( std::istream & stream )
+    {
+      // Read tree count.
+      std::size_t size = 0;
+      stream.read((char*)&size, sizeof(size));
+      for ( std::size_t t = 0; t < size; ++t )
+      {
+        RandomTree * tree = new RandomTree;
+        tree->deserialize(stream);
+        forest.push_back(tree);
+      }
+
+      // Done.
+      return stream;
+    }
+
+    /**
+     * Deserializes the tree.
+     * @param stream The input stream.
+     * @return The input stream.
+     */
+    std::istream & deserialize( std::istream & stream )
+    {
+      // Burn the forest to the ground!
+      burn();
+
+      // Deserialize.
+      return deserialize_append( stream );
+    }
+
+    /**
+     * Returns the size of the forest.
+     * @return Forest size.
+     */
+    unsigned int get_size( void ) const
+    {
+      return forest.size();
+    }
+
   private:
     Forest forest;        ///< The random forest generated.
 

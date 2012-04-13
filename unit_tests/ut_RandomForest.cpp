@@ -17,7 +17,7 @@
 
 using namespace std;
 
-CPPUNIT_TEST_SUITE_REGISTRATION( ut_RandomForest );
+//CPPUNIT_TEST_SUITE_REGISTRATION( ut_RandomForest );
 
 //------------------------------------------------------------------------------
 

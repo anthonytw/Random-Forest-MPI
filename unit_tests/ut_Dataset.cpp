@@ -11,7 +11,7 @@
 
 using namespace std;
 
-CPPUNIT_TEST_SUITE_REGISTRATION( ut_Dataset );
+//CPPUNIT_TEST_SUITE_REGISTRATION( ut_Dataset );
 
 //------------------------------------------------------------------------------
 
