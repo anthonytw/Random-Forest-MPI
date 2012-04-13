@@ -34,7 +34,7 @@ class RandomForest
         ResultQueue( void )
         {
           // Initialize mutex.
-          mutex = PTHREAD_MUTEX_INITIALIZER;
+          pthread_mutex_init(&mutex, NULL);
 
           // Initialize semaphore.
           sem_init( &semaphore, 0, 0 );

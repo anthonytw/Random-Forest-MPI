@@ -18,24 +18,18 @@ namespace std
   vector<string> Tokenize(const string& str,const string& delimiters);
 }
 
-void execute_main( const int process_count );
+void execute_main( const int process_count, const double sample_probability  );
 
-void execute_child( const unsigned int parent_rank, const unsigned int rank );
+void execute_child(
+  const unsigned int parent_rank,
+  const unsigned int rank,
+  const unsigned int bootstrap_divisor,
+  const unsigned int split_keys_per_node,
+  const unsigned int trees_per_forest );
 
 int main( int argc, char ** argv )
 {
   int is_initialized = 0;
-
-  if ( argc != 4 )
-  {
-    cout
-      << "Usage: mpirun -n <1> rf <2> <3> <4>\n"
-      << "  <1> - Number of nodes to use\n"
-      << "  <2> - Bootstrap divisor\n"
-      << "  <3> - Split keys per node\n"
-      << "  <4> - Trees per forest" << endl;
-    return 0;
-  }
 
   // Determine if MPI has been initialized already.
   MPI_Initialized(&is_initialized);
@@ -57,22 +51,49 @@ int main( int argc, char ** argv )
       << "Spawned [ P: " << processes << " R: "
       << rank << " N: " << name << endl;
 
-    if (rank == processes-1)
+    // Enough arguments?
+    if ( argc != 5 )
     {
-      execute_main( processes );
+      if ( rank == 0 )
+      {
+        cout
+          << "Usage: mpirun -n <1> rf <2> <3> <4> <5>\n"
+          << "  <1> - Number of nodes to use\n"
+          << "  <2> - Bootstrap divisor\n"
+          << "  <3> - Split keys per node\n"
+          << "  <4> - Trees per forest\n"
+          << "  <5> - Training set sample probability (%)" << endl;
+      }
     }
     else
     {
-      // Extract parameters.
-      unsigned int bootstrap_divisor = atoi(argv[1]);
-      unsigned int split_keys_per_node = atoi(argv[2]);
-      unsigned int trees_per_forest = atoi(argv[3]);
-      execute_child(
-        processes-1,
-        rank,
-        bootstrap_divisor,
-        split_keys_per_node,
-        trees_per_forest );
+      double sample_probability = atof(argv[4]);
+
+      if (rank == processes-1)
+      {
+        if ( sample_probability < 1.0 )
+        {
+          sample_probability = 1.0;
+        }
+        if ( sample_probability > 100.0 )
+        {
+          sample_probability = 100.0;
+        }
+        execute_main( processes, sample_probability / 100.0 );
+      }
+      else
+      {
+        // Extract parameters.
+        unsigned int bootstrap_divisor = atoi(argv[1]);
+        unsigned int split_keys_per_node = atoi(argv[2]);
+        unsigned int trees_per_forest = atoi(argv[3]);
+        execute_child(
+          processes-1,
+          rank,
+          bootstrap_divisor,
+          split_keys_per_node,
+          trees_per_forest );
+      }
     }
   }
 
@@ -82,9 +103,13 @@ int main( int argc, char ** argv )
   return 0;
 }
 
-void execute_main( const int process_count )
+void execute_main( const int process_count, const double sample_probability )
 {
   unsigned int child_process_count = process_count - 1;
+
+  cout << "Master online: [CPC: " << child_process_count
+    << ", SP: " << sample_probability << "%" << endl;
+  int sample_probability_int = static_cast<int>(RAND_MAX * sample_probability);
 
   // Read data.
   unsigned int col_count = 107; // Ignore first (ID) column and last (?) col.
@@ -95,7 +120,6 @@ void execute_main( const int process_count )
 
   cout << "Master: Loading data..." << endl;
   ifstream file( "data/seq_val_1_2.csv", ios_base::in );
-  unsigned int on_child = 0;
   while ( getline(file, line, '\n') )
   {
     // Tokenize row.
@@ -112,14 +136,19 @@ void execute_main( const int process_count )
     }
 
     // Send to child.
-    MPI_Send(
-      &row_buffer,
-      col_count,
-      MPI_DOUBLE,
-      on_child,
-      MessageTag::RowBuffer,
-      MPI_COMM_WORLD );
-    on_child = (on_child+1) % child_process_count;
+    for ( unsigned int child_rank = 0; child_rank < child_process_count; ++child_rank )
+    {
+      if ( rand() < sample_probability_int )
+      {
+        MPI_Send(
+          &row_buffer,
+          col_count,
+          MPI_DOUBLE,
+          child_rank,
+          MessageTag::RowBuffer,
+          MPI_COMM_WORLD );
+      }
+    }
   }
 
   // Stop the loading.
@@ -239,12 +268,22 @@ void execute_main( const int process_count )
     << "Recall            : " << recall << "%" << endl;
 }
 
-void execute_child( const unsigned int parent_rank, const unsigned int rank )
+
+void execute_child(
+  const unsigned int parent_rank,
+  const unsigned int rank,
+  const unsigned int bootstrap_divisor,
+  const unsigned int split_keys_per_node,
+  const unsigned int trees_per_forest )
 {
   unsigned int col_count = 107; // Ignore first (ID) column and last (?) col.
   unsigned int feature_count = col_count - 1; // Class and n-1 features.
 
   MPI_Status status;
+
+  cout << "Slave " << rank << " online: [BD: "
+    << bootstrap_divisor << ", SK: " << split_keys_per_node
+    << ", TPF: " << trees_per_forest << "]" << endl;
 
   cout << "Slave " << rank << ": Waiting on rows..." << endl;
   vector<double> data;
@@ -302,7 +341,13 @@ void execute_child( const unsigned int parent_rank, const unsigned int rank )
   // Data should be loaded. Time to grow the forest.
   cout << "Slave " << rank << ": Growing tree..." << endl;
   RandomForest forest;
-  forest.grow_forest( dsr, 0, dsr.row_count() / 3, split_keys, 16, 5 );
+  forest.grow_forest(
+    dsr,
+    0,
+    dsr.row_count() / bootstrap_divisor,
+    split_keys,
+    split_keys_per_node,
+    trees_per_forest );
   cout << "Slave " << rank << ": Grown! Seralizing and sending..." << endl;
 
   stringstream filename;
